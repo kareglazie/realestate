@@ -18,7 +18,7 @@ git pull origin develop
 git checkout -b feature/my-awesome-feature
 # ... работаем ...
 git push origin feature/my-awesome-feature
-# создаем merge request в GitLab
+# создаем pull request в GitHub
 ```
 
 ### 2. **Не коммитить чувствительные данные**
@@ -80,7 +80,7 @@ git commit -m "docs(readme): update instructions"
 ### 3. **Проходим код-ревью**
 
 **Процесс ревью:**
-1. Создаем merge request
+1. Создаем pull request
 2. Назначаем 2 ревьюверов
 3. Ждем аппрувов ✅
 4. Мержим только после 2+ аппрувов!
@@ -119,7 +119,7 @@ pre-commit install
 
 ### Нашли баг?
 1. Не паникуем! 
-2. Создаем issue в GitLab
+2. Создаем issue в GitHub
 3. Используем шаблон бага
 4. Назначаем на себя (если будете фиксить)
 

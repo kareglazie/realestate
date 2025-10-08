@@ -31,7 +31,7 @@
 - что-то для удобного UI-дизайна (Meterial-UI?)
 
 ### Инфраструктура
-- GitLab (репозиторий, CI/CD, Issues)
+- GitHub (репозиторий, CI/CD (Github Actions), Issues)
 - Docker + Docker Compose
 - Nginx + Gunicorn
 - Облачное хранилище (например, Yandex Cloud Storage) - на будущее
@@ -59,7 +59,7 @@ docker-compose down
 
 ## Связь
 
-- **GitLab Issues** - для багов и задач
+- **GitHub Issues** - для багов и задач
 - **Telegram-группа** - для оперативных вопросов
 
 ## Структура проекта
