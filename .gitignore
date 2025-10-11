@@ -1,5 +1,29 @@
+<<<<<<< HEAD
 __pycache__
 *.pyc 
 .env
 .credentials
 *.sqlite3
+=======
+# Django
+*.pyc
+__pycache__/
+*.sqlite3
+media/
+staticfiles/
+
+# Environment
+.env
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+>>>>>>> e719e0f (requirements, gitignore)

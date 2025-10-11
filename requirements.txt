@@ -1,0 +1,11 @@
+Django
+djangorestframework
+django-cors-headers
+django-filter
+psycopg2
+Pillow
+python-dotenv
+django-admin-sortable2
+django-tinymce
+django-environ
+requests
