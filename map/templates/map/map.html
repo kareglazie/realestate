@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Карта строящихся объектов недвижимости</title>
+
+    <link rel="shortcut icon" href="{% static 'favicon.ico' %}" type="image/x-icon">
+
+    <!-- Leaflet CSS -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet-sidebar@2.0.0/src/L.Control.Sidebar.css"
+    />
+
+    <!-- Bootstrap CSS -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css"
+    />
+
+    <style>
+      body {
+        padding: 0;
+        margin: 0;
+        font-family: Arial, sans-serif;
+      }
+
+      html,
+      body,
+      #map {
+        height: 100%;
+        width: 100%;
+      }
+
+      .sidebar {
+        background: white;
+        box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+      }
+
+      .sidebar-content {
+        padding: 20px;
+        height: 100%;
+        overflow-y: auto;
+      }
+
+      .object-photo {
+        max-height: 200px;
+        object-fit: cover;
+        border-radius: 5px;
+      }
+
+      .status-badge {
+        font-size: 0.8em;
+        padding: 4px 8px;
+        border-radius: 12px;
+        color: white;
+      }
+
+      .status-planning {
+        background-color: #3498db;
+      }
+      .status-construction {
+        background-color: #f39c12;
+      }
+      .status-completed {
+        background-color: #27ae60;
+      }
+      .status-frozen {
+        background-color: #95a5a6;
+      }
+
+      .info-section {
+        background: #f8f9fa;
+        border-radius: 5px;
+        padding: 15px;
+        margin-bottom: 15px;
+      }
+
+      .info-row {
+        margin-bottom: 8px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #dee2e6;
+      }
+
+      .info-row:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+      }
+
+      .info-label {
+        font-weight: bold;
+        color: #495057;
+        font-size: 0.9em;
+      }
+
+      .select-prompt {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+      }
+
+      .hand-pointer {
+        width: 60px;
+        height: 60px;
+        margin-bottom: 20px;
+        opacity: 0.7;
+      }
+
+      /* Стили для кнопки закрытия */
+      .close-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 1000;
+        border: none;
+        background: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #6c757d;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: all 0.2s ease;
+      }
+
+      .close-btn:hover {
+        background-color: #f8f9fa;
+        color: #495057;
+      }
+
+      /* Контейнер для информации об объекте с относительным позиционированием */
+      .object-info-container {
+        position: relative;
+      }
+
+      /* Стили для кнопки добавления объекта */
+      .add-object-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 1000;
+        background-color: #28a745;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 5px;
+        text-decoration: none;
+        font-weight: bold;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        transition: all 0.2s ease;
+      }
+
+      .add-object-btn:hover {
+        background-color: #218838;
+        color: white;
+        text-decoration: none;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      }
+    </style>
+
+    <!-- Передаем данные из Django в JavaScript -->
+    {{ sites|json_script:"sites-data" }}
+  </head>
+  <body>
+    <!-- Боковая панель -->
+    <div id="sidebar" class="sidebar" style="width: 400px; display: none">
+      <div class="sidebar-content">
+        <!-- Состояние: выбор объекта -->
+        <div id="select-prompt" class="select-prompt">
+          <img
+            src="{% static 'icons/hand-pointer.svg' %}"
+            alt="Выберите объект"
+            class="hand-pointer"
+          />
+          <h5>Выберите объект на карте</h5>
+          <p class="text-muted">
+            Нажмите на любой маркер для просмотра информации о строительном
+            объекте
+          </p>
+        </div>
+
+        <!-- Состояние: загрузка -->
+        <div id="loading-state" style="display: none">
+          <div
+            class="d-flex justify-content-center align-items-center"
+            style="height: 200px"
+          >
+            <div class="spinner-border text-primary" role="status">
+              <span class="sr-only">Загрузка...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Состояние: информация об объекте -->
+        <div
+          id="object-info"
+          class="object-info-container"
+          style="display: none"
+        >
+          <!-- Кнопка закрытия в правом верхнем углу -->
+          <button onclick="closeSidebar()" class="close-btn" title="Закрыть">
+            ×
+          </button>
+
+          <!-- Заголовок и статус -->
+          <div
+            class="d-flex justify-content-between align-items-start mb-3"
+            style="padding-right: 40px"
+          >
+            <h4 id="object-title" class="mb-0 mr-2"></h4>
+            <span id="object-status" class="status-badge"></span>
+          </div>
+
+          <!-- Основная фотография -->
+          <img
+            id="main-photo"
+            class="object-photo w-100 shadow mb-3"
+            style="display: none"
+          />
+
+          <!-- Основная информация -->
+          <div class="info-section">
+            <div class="info-row">
+              <div class="info-label">Застройщик:</div>
+              <div id="object-developer"></div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Дата начала:</div>
+              <div id="object-start-date"></div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Плановая сдача:</div>
+              <div id="object-completion-date"></div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Телефон:</div>
+              <div id="object-phone"></div>
+            </div>
+          </div>
+
+          <!-- Описание -->
+          <div id="object-description-section" style="display: none">
+            <h6>Описание проекта:</h6>
+            <p id="object-description" class="mb-0"></p>
+          </div>
+
+          <!-- Дополнительные фотографии -->
+          <div id="object-photos-section" style="display: none">
+            <h6 class="mb-3">Фотографии объекта:</h6>
+            <div
+              id="object-photos-carousel"
+              class="carousel slide"
+              data-ride="carousel"
+            >
+              <div class="carousel-inner" id="carousel-inner">
+                <!-- Фотографии будут добавлены через JavaScript -->
+              </div>
+              <a
+                class="carousel-control-prev"
+                href="#object-photos-carousel"
+                role="button"
+                data-slide="prev"
+              >
+                <span
+                  class="carousel-control-prev-icon"
+                  aria-hidden="true"
+                ></span>
+                <span class="sr-only">Предыдущая</span>
+              </a>
+              <a
+                class="carousel-control-next"
+                href="#object-photos-carousel"
+                role="button"
+                data-slide="next"
+              >
+                <span
+                  class="carousel-control-next-icon"
+                  aria-hidden="true"
+                ></span>
+                <span class="sr-only">Следующая</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Карта -->
+    <div id="map"></div>
+
+    <!-- Кнопка добавления объекта (ведет в админку) -->
+    <a href="/admin/map/constructionsite/" class="add-object-btn"
+      >+ Добавить объект</a
+    >
+
+    <!-- JavaScript библиотеки -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Leaflet -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-sidebar@2.0.0/src/L.Control.Sidebar.js"></script>
+
+    <script>
+      // Инициализация карты
+      var map = L.map("map").setView([43.5855, 39.7231], 12);
+
+      // Добавляем слой карты
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors",
+      }).addTo(map);
+
+      // Функции для работы со статусами
+      function getStatusColor(status) {
+        const colors = {
+          planning: "#3498db",
+          construction: "#f39c12",
+          completed: "#27ae60",
+          frozen: "#95a5a6",
+        };
+        return colors[status] || "#3498db";
+      }
+
+      function getStatusText(status) {
+        const statusText = {
+          planning: "Планируется",
+          construction: "В строительстве",
+          completed: "Завершено",
+          frozen: "Заморожено",
+        };
+        return statusText[status] || status;
+      }
+
+      // Создаем кастомные иконки
+      function createCustomIcon(status) {
+        const color = getStatusColor(status);
+
+        // Создаем SVG иконку
+        const svg = `
+                <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                    <path fill="${color}" stroke="#ffffff" stroke-width="2" 
+                          d="M16 2C8.3 2 2 8.3 2 16s6.3 14 14 14 14-6.3 14-14S23.7 2 16 2z"/>
+                    <circle fill="#ffffff" cx="16" cy="16" r="6"/>
+                </svg>
+            `;
+
+        return L.divIcon({
+          className: "custom-marker",
+          html: svg,
+          iconSize: [32, 32],
+          iconAnchor: [16, 32],
+          popupAnchor: [0, -32],
+        });
+      }
+
+      // Это если мы захотим кастомные png-иконки для объектов на карте (разные для строящихся, готовых и т. п.)
+      //         function createCustomIcon(status) {
+      //     const iconUrls = {
+      //         'planning': '{% static "icons/planning.png" %}',
+      //         'construction': '{% static "icons/construction.png" %}',
+      //         'completed': '{% static "icons/completed.png" %}',
+      //         'frozen': '{% static "icons/frozen.png" %}'
+      //     };
+
+      //     return L.icon({
+      //         iconUrl: iconUrls[status] || iconUrls['planning'],
+      //         iconSize: [32, 32],
+      //         iconAnchor: [16, 32],
+      //         popupAnchor: [0, -32]
+      //     });
+      // }
+
+      // Загружаем данные из Django
+      function loadSitesData() {
+        const element = document.getElementById("sites-data");
+        if (!element) {
+          console.error('Element with id "sites-data" not found');
+          return [];
+        }
+        return JSON.parse(element.textContent);
+      }
+
+      // Показываем информацию об объекте
+      function showObjectInfo(site) {
+        // Скрываем подсказку, показываем информацию
+        document.getElementById("select-prompt").style.display = "none";
+        document.getElementById("object-info").style.display = "block";
+
+        // Заполняем данные
+        document.getElementById("object-title").textContent = site.name;
+        document.getElementById("object-status").textContent = getStatusText(
+          site.status
+        );
+        document.getElementById("object-status").className =
+          "status-badge status-" + site.status;
+        document.getElementById("object-developer").textContent =
+          site.developer || "Не указан";
+        document.getElementById("object-start-date").textContent =
+          site.start_date || "Не указана";
+        document.getElementById("object-completion-date").textContent =
+          site.completion_date || "Не указана";
+        document.getElementById("object-phone").textContent =
+          site.phone || "Не указан";
+
+        // Описание
+        if (site.description) {
+          document.getElementById("object-description").textContent =
+            site.description;
+          document.getElementById("object-description-section").style.display =
+            "block";
+        } else {
+          document.getElementById("object-description-section").style.display =
+            "none";
+        }
+
+        // Фотографии (заглушка - нужно добавить поле photos в модель)
+        const hasPhotos = site.photos && site.photos.length > 0;
+        document.getElementById("object-photos-section").style.display =
+          hasPhotos ? "block" : "none";
+
+        if (hasPhotos) {
+          const carouselInner = document.getElementById("carousel-inner");
+          carouselInner.innerHTML = "";
+
+          site.photos.forEach((photo, index) => {
+            const item = document.createElement("div");
+            item.className = `carousel-item ${index === 0 ? "active" : ""}`;
+            item.innerHTML = `<img src="${photo}" class="d-block w-100 object-photo" alt="${site.name}">`;
+            carouselInner.appendChild(item);
+          });
+        }
+      }
+
+      // Функция закрытия боковой панели
+      function closeSidebar() {
+        resetSidebar();
+        // Скрываем саму панель
+        document.getElementById("sidebar").style.display = "none";
+      }
+
+      // Сбрасываем состояние боковой панели
+      function resetSidebar() {
+        document.getElementById("select-prompt").style.display = "flex";
+        document.getElementById("object-info").style.display = "none";
+        document.getElementById("loading-state").style.display = "none";
+      }
+
+      // Основная логика
+      document.addEventListener("DOMContentLoaded", function () {
+        const sites = loadSitesData();
+        console.log("Loaded sites:", sites);
+
+        // Добавляем маркеры на карту
+        sites.forEach(function (site) {
+          const customIcon = createCustomIcon(site.status);
+
+          const marker = L.marker([site.latitude, site.longitude], {
+            icon: customIcon,
+          }).addTo(map);
+
+          // Всплывающая подсказка
+          marker.bindTooltip(site.name);
+
+          // Обработчик клика на маркер
+          marker.on("click", function (e) {
+            // Останавливаем всплытие события, чтобы не сработал клик по карте
+            if (e.originalEvent) {
+              e.originalEvent.stopPropagation();
+            }
+
+            // Показываем боковую панель
+            document.getElementById("sidebar").style.display = "block";
+
+            // Показываем информацию об объекте
+            showObjectInfo(site);
+          });
+        });
+
+        // Обработчик клика на карту (скрываем информацию)
+        map.on("click", function () {
+          closeSidebar();
+        });
+
+        // Также закрываем по клику на пустое место в боковой панели
+        document
+          .getElementById("select-prompt")
+          .addEventListener("click", function (e) {
+            if (e.target === this) {
+              closeSidebar();
+            }
+          });
+      });
+
+      // Закрытие по клавише Escape
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") {
+          closeSidebar();
+        }
+      });
+    </script>
+  </body>
+</html>
