@@ -1,10 +1,3 @@
-<<<<<<< HEAD
-__pycache__
-*.pyc 
-.env
-.credentials
-*.sqlite3
-=======
 # Django
 *.pyc
 __pycache__/
@@ -26,4 +19,3 @@ env/
 # OS
 .DS_Store
 Thumbs.db
->>>>>>> e719e0f (requirements, gitignore)
