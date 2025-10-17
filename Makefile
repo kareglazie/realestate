@@ -27,13 +27,9 @@ db-load:
 db-pull:
 	@echo "Pulling latest data..."
 	git pull
-	@if git diff HEAD~1 --name-only | grep -q "fixtures/realestate_data.json"; then \
-		echo "Database changed, updating..."; \
-		python manage.py migrate; \
-		python manage.py loaddata realestate_data.json; \
-	else \
-		echo "No database changes detected."; \
-	fi
+	@echo "Updating database..."
+	python manage.py migrate
+	python manage.py loaddata realestate_data.json
 
 help:
 	@echo "Available commands:"
