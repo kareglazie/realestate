@@ -1,9 +1,12 @@
 import os
 import shutil
+import numpy as np
 from langchain.chains import RetrievalQA
+import faiss
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.prompts import PromptTemplate
+from langchain_community.docstore.in_memory import InMemoryDocstore
 from rag_bot.llm import LLM
 from rag_bot.services.db_service import get_all_items
 
@@ -46,7 +49,10 @@ class RAGChain:
         self.chain = RetrievalQA.from_chain_type(
             llm=self.llm,
             chain_type="stuff",
-            retriever=self.vector_store.as_retriever(search_kwargs={"k": 3}),
+            retriever=self.vector_store.as_retriever(
+                search_type="similarity",
+                search_kwargs={"k": 3}
+            ),
             return_source_documents=False,
             chain_type_kwargs={"prompt": self.prompt_template}
         )
@@ -78,16 +84,27 @@ class RAGChain:
 
         if not documents:
             raise ValueError("Нет данных для индексации! Проверь, есть ли объекты в базе данных.")
+        
+        d = len(self.embeddings.embed_query("test"))
+        index = faiss.IndexHNSWFlat(d, 32)
+        vectors = np.array([self.embeddings.embed_query(d) for d in documents], dtype="float32")
+        index.add(vectors)
 
-        self.vector_store = FAISS.from_texts(
-            documents,
-            self.embeddings
+        docstore = InMemoryDocstore({str(i): doc for i, doc in enumerate(documents)})
+        index_to_docstore_id = {i: str(i) for i in range(len(documents))}
+
+        self.vector_store = FAISS(
+            embedding_function=self.embeddings,
+            index=index,
+            docstore=docstore,
+            index_to_docstore_id=index_to_docstore_id
         )
+
         self.vector_store.save_local(INDEX_PATH)
         print(f"✅ Индекс создан: {len(documents)} документов")
 
     def run(self, question: str):
         try:
-            return self.chain.run(question)
+            return self.chain.invoke(question)
         except Exception as e:
             return f"Ошибка при обработке запроса: {str(e)}"
