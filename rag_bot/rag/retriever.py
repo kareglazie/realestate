@@ -1,3 +1,4 @@
+
 from langchain.vectorstores import FAISS
 from langchain.embeddings import OpenAIEmbeddings
 from rag_bot.services.db_service import get_all_items
