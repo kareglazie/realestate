@@ -1,3 +1,4 @@
+# --- Core ---
 Django
 djangorestframework
 django-cors-headers
@@ -9,6 +10,16 @@ django-admin-sortable2
 django-tinymce
 django-environ
 requests
+tiktoken
+
+# --- LLM ---
 langchain
+langchain-core
+langchain-community
+langchain-text-splitters
+langchain-huggingface
 faiss-cpu
 openai
+sentence-transformers
+faiss-cpu  # или faiss-gpu, если используешь CUDA
+
