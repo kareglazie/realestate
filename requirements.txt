@@ -9,3 +9,6 @@ django-admin-sortable2
 django-tinymce
 django-environ
 requests
+langchain
+faiss-cpu
+openai
