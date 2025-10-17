@@ -22,14 +22,14 @@ db-push:
 db-load:
 	@echo "Loading fixtures into database..."
 	python manage.py migrate
-	python manage.py loaddata realestate_data.json
+	python manage.py loaddata fixtures/realestate_data.json
 
 db-pull:
 	@echo "Pulling latest data..."
 	git pull
 	@echo "Updating database..."
 	python manage.py migrate
-	python manage.py loaddata realestate_data.json
+	python manage.py loaddata fixtures/realestate_data.json
 
 help:
 	@echo "Available commands:"
