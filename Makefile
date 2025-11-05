@@ -14,11 +14,15 @@ db-push:
 	fi
 	@echo "Updating fixtures..."
 	python manage.py dumpdata --exclude=auth --exclude=contenttypes --exclude=sessions --exclude=admin.logentry --indent=2 -o fixtures/realestate_data.json
-	git add fixtures/realestate_data.json
-	git commit -m "Update database fixtures"
-	git push
-	@echo "Fixtures updated and pushed! Notify your team."
-
+	@if git diff --quiet fixtures/realestate_data.json; then \
+		echo "No changes in fixtures."; \
+	else \
+		git add fixtures/realestate_data.json; \
+		git commit -m "Update database fixtures"; \
+		git push; \
+		echo "Fixtures updated and pushed!"; \
+	fi
+	
 db-load:
 	@echo "Loading fixtures into database..."
 	python manage.py migrate
